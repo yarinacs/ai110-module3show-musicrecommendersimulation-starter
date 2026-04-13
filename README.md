@@ -89,13 +89,37 @@ This process ensures that the user receives personalized recommendations based o
 
 ---
 
+## User Profiles
+
+Six profiles were run to evaluate the recommender — three standard taste profiles and three adversarial edge cases designed to expose weaknesses in the scoring logic.
+
+### Standard Profiles
+
+| Profile | Genre | Mood | Energy | Notes |
+|---------|-------|------|--------|-------|
+| Deep Focus | lofi | focused | 0.42 | Low-energy, acoustic, work/study listener |
+| High-Energy Pop | pop | happy | 0.85 | Upbeat, danceable, festival listener |
+| Deep Intense Rock | rock | intense | 0.90 | Heavy, fast, guitar-driven listener |
+
+### Adversarial / Edge-Case Profiles
+
+| Profile | Genre | Mood | Energy | Why adversarial |
+|---------|-------|------|--------|----------------|
+| Conflicted Listener | metal | sad | 0.90 | High energy + sad mood are in direct tension |
+| Genre Desert | country | nostalgic | 0.35 | "country" does not exist in the catalog — genre bonus can never fire |
+| All-Zeros Extremist | classical | melancholic | 0.0 | Every numeric target is 0.0 — an unreachable extreme |
+
+---
+
 ## Sample Output
 
 Running `PYTHONPATH=src python src/main.py` produces the following terminal output:
 
-```
-Loaded songs: 18
+### Profile 1 — Deep Focus (lofi / focused)
 
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
 ============================================================
   Profile : Deep Focus (lofi / focused)
   Genre   : lofi  |  Mood: focused
@@ -135,9 +159,19 @@ Loaded songs: 18
         • danceability similarity (+0.43)
 
 ------------------------------------------------------------
+```
 
+**Observation:** Focus Flow is a near-perfect match (5.71/5.75) — the only song with both genre *and* mood alignment. Scores drop sharply to ~4.2 once mood match disappears, showing the +1.5 bonus has real ranking power.
+
+---
+
+### Profile 2 — High-Energy Pop (pop / happy)
+
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
 ============================================================
-  Profile : Upbeat Pop (pop / happy)
+  Profile : High-Energy Pop (pop / happy)
   Genre   : pop  |  Mood: happy
 ============================================================
   #1  Sunrise City — Neon Echo
@@ -177,10 +211,206 @@ Loaded songs: 18
 ------------------------------------------------------------
 ```
 
-**What to notice:**
-- **Focus Flow** scores 5.71/5.75 — the only song matching both genre *and* mood for the lofi profile, with near-perfect numerical alignment.
-- **Rooftop Lights** (#3 pop/happy) earns the mood bonus (+1.5) but *not* the genre bonus because its genre is `indie pop`, not `pop` — a visible effect of exact-string matching.
-- Scores drop sharply after #3 in both profiles, confirming the genre+mood bonuses dominate the ranking.
+**Observation:** Rooftop Lights (#3) earns the mood bonus (+1.5) but *not* the genre bonus because its genre is `indie pop`, not `pop` — a visible effect of exact-string matching. It still ranks above Crown the Block which has neither categorical match.
+
+---
+
+### Profile 3 — Deep Intense Rock (rock / intense)
+
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
+============================================================
+  Profile : Deep Intense Rock (rock / intense)
+  Genre   : rock  |  Mood: intense
+============================================================
+  #1  Storm Runner — Voltline
+      Score : 5.74 / 5.75
+        • genre match (+2.0)
+        • mood match (+1.5)
+        • energy similarity (+0.99)
+        • valence similarity (+0.75)
+        • danceability similarity (+0.49)
+
+  #2  Gym Hero — Max Pulse
+      Score : 3.39 / 5.75
+        • mood match (+1.5)
+        • energy similarity (+0.97)
+        • valence similarity (+0.53)
+        • danceability similarity (+0.39)
+
+  #3  Night Drive Loop — Neon Echo
+      Score : 2.05 / 5.75
+        • energy similarity (+0.85)
+        • valence similarity (+0.74)
+        • danceability similarity (+0.46)
+
+  #4  Iron Collapse — Shatterglass
+      Score : 1.88 / 5.75
+        • energy similarity (+0.93)
+        • valence similarity (+0.55)
+        • danceability similarity (+0.40)
+
+  #5  Crown the Block — MC Velvet
+      Score : 1.85 / 5.75
+        • energy similarity (+0.88)
+        • valence similarity (+0.57)
+        • danceability similarity (+0.40)
+
+------------------------------------------------------------
+```
+
+**Observation:** Storm Runner dominates at 5.74/5.75 — the highest score of all six profiles, because it perfectly aligns on both genre+mood (+3.5) and energy (0.91 vs target 0.90). There is only one rock song in the catalog, so positions #3–#5 all fall below 2.1, illustrating catalog skew.
+
+---
+
+### Adversarial Profile 1 — Conflicted Listener (metal / sad, energy=0.9)
+
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
+============================================================
+  Profile : [ADVERSARIAL] Conflicted Listener (metal / sad, energy=0.9)
+  Genre   : metal  |  Mood: sad
+============================================================
+  #1  Iron Collapse — Shatterglass
+      Score : 4.17 / 5.75
+        • genre match (+2.0)
+        • energy similarity (+0.93)
+        • valence similarity (+0.73)
+        • danceability similarity (+0.50)
+
+  #2  Empty Glass — Dara Bell
+      Score : 3.21 / 5.75
+        • mood match (+1.5)
+        • energy similarity (+0.48)
+        • valence similarity (+0.74)
+        • danceability similarity (+0.49)
+
+  #3  Storm Runner — Voltline
+      Score : 1.93 / 5.75
+        • energy similarity (+0.99)
+        • valence similarity (+0.54)
+        • danceability similarity (+0.40)
+
+  #4  Night Drive Loop — Neon Echo
+      Score : 1.74 / 5.75
+        • energy similarity (+0.85)
+        • valence similarity (+0.53)
+        • danceability similarity (+0.36)
+
+  #5  Gym Hero — Max Pulse
+      Score : 1.58 / 5.75
+        • energy similarity (+0.97)
+        • valence similarity (+0.32)
+        • danceability similarity (+0.29)
+
+------------------------------------------------------------
+```
+
+**What this reveals:** The system can be "tricked" by conflicting signals. Iron Collapse wins on genre match alone (+2.0) despite having *angry* mood, not *sad*. Empty Glass is the only sad song in the catalog, but its low energy (0.38) clashes with the target of 0.9, costing it ~0.52 energy points. The mood bonus is not strong enough to overcome the energy mismatch — the conflicting user profile produces a winner that satisfies genre but not mood.
+
+---
+
+### Adversarial Profile 2 — Genre Desert (country / nostalgic)
+
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
+============================================================
+  Profile : [ADVERSARIAL] Genre Desert (country / nostalgic)
+  Genre   : country  |  Mood: nostalgic
+============================================================
+  #1  Old Porch Hymn — River Dust
+      Score : 3.69 / 5.75
+        • mood match (+1.5)
+        • energy similarity (+0.96)
+        • valence similarity (+0.74)
+        • danceability similarity (+0.49)
+
+  #2  Library Rain — Paper Lanterns
+      Score : 2.19 / 5.75
+        • energy similarity (+1.00)
+        • valence similarity (+0.73)
+        • danceability similarity (+0.46)
+
+  #3  Coffee Shop Stories — Slow Stereo
+      Score : 2.14 / 5.75
+        • energy similarity (+0.98)
+        • valence similarity (+0.68)
+        • danceability similarity (+0.48)
+
+  #4  Focus Flow — LoRoom
+      Score : 2.13 / 5.75
+        • energy similarity (+0.95)
+        • valence similarity (+0.73)
+        • danceability similarity (+0.45)
+
+  #5  Spacewalk Thoughts — Orbit Bloom
+      Score : 2.11 / 5.75
+        • energy similarity (+0.93)
+        • valence similarity (+0.73)
+        • danceability similarity (+0.45)
+
+------------------------------------------------------------
+```
+
+**What this reveals:** No song ever receives the +2.0 genre bonus — the maximum achievable score drops to 3.75. Old Porch Hymn wins on mood alone (+1.5), but positions #2–#5 are separated by tiny margins (2.19 vs 2.11), making the ranking essentially arbitrary. A missing genre means the system is navigating blind, surfacing acoustically-similar songs regardless of actual style fit.
+
+---
+
+### Adversarial Profile 3 — All-Zeros Extremist (classical / melancholic)
+
+> **Screenshot:** *(replace with your terminal screenshot)*
+
+```
+============================================================
+  Profile : [ADVERSARIAL] All-Zeros Extremist (classical / melancholic)
+  Genre   : classical  |  Mood: melancholic
+============================================================
+  #1  Autumn Sonata No. 3 — Clara Voss
+      Score : 5.20 / 5.75
+        • genre match (+2.0)
+        • mood match (+1.5)
+        • energy similarity (+0.78)
+        • valence similarity (+0.54)
+        • danceability similarity (+0.38)
+
+  #2  Empty Glass — Dara Bell
+      Score : 1.50 / 5.75
+        • energy similarity (+0.62)
+        • valence similarity (+0.59)
+        • danceability similarity (+0.29)
+
+  #3  Spacewalk Thoughts — Orbit Bloom
+      Score : 1.28 / 5.75
+        • energy similarity (+0.72)
+        • valence similarity (+0.26)
+        • danceability similarity (+0.30)
+
+  #4  Old Porch Hymn — River Dust
+      Score : 1.24 / 5.75
+        • energy similarity (+0.69)
+        • valence similarity (+0.29)
+        • danceability similarity (+0.26)
+
+  #5  Library Rain — Paper Lanterns
+      Score : 1.16 / 5.75
+        • energy similarity (+0.65)
+        • valence similarity (+0.30)
+        • danceability similarity (+0.21)
+
+------------------------------------------------------------
+```
+
+**What this reveals:** The system handles zeros without crashing or going negative (the `1.0 - abs(...)` formula always stays in [0, 1]). However, the winner (Autumn Sonata) scores 5.20 purely from its genre+mood categorical matches — the numeric targets are so extreme (0.0) that *every* song loses energy/valence/danceability points and the ranking collapses into "whoever has categorical matches wins." The all-zeros profile does not meaningfully test numeric fit.
+
+---
+
+**Summary of what the adversarial runs revealed:**
+- **Conflicted Listener:** Categorical genre bonus (2.0) can override a mood mismatch. High-energy + sad mood produces a winner that matches neither signal perfectly.
+- **Genre Desert:** Without a genre match, max achievable score is only 3.75 and the top-4 recommendations are nearly tied — the ranking is fragile.
+- **All-Zeros Extremist:** Extreme numeric targets don't break the math (no negatives) but they make numeric similarity meaningless, leaving categorical matches as the only real discriminator.
 
 ---
 
@@ -249,10 +479,9 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+The most important thing I learned is that a recommender system is really a set of opinions encoded as numbers. When I doubled the energy weight from 1.0 to 2.0, "Gym Hero" — a loud workout track — started showing up for users who said they wanted happy pop music. That result came from one changed number, not a bug. It showed that weight choices quietly decide whose preferences the system takes seriously.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+I also learned that bias does not always look like an error. The Genre Desert profile (a country fan getting folk and lofi suggestions instead) produced plausible-sounding results — songs that are acoustically similar — while completely ignoring what the user actually asked for. The system had no way to say "I don't have what you want." It just filled the gap silently. That is how real recommender systems behave too, and it is easy to miss unless you deliberately test edge cases.
 
 
 ---

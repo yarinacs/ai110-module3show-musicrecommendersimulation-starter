@@ -100,15 +100,17 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
 
     # --- Categorical matches (exact) ---
     if song["genre"].lower() == user_prefs["genre"].lower():
-        score += 2.0
-        reasons.append(f"genre match (+2.0)")
+        # EXPERIMENT: halved (was 2.0) — reduces categorical dominance
+        score += 1.0
+        reasons.append(f"genre match (+1.0)")
 
     if song["mood"].lower() == user_prefs["mood"].lower():
         score += 1.5
         reasons.append(f"mood match (+1.5)")
 
     # --- Numerical similarity (continuous, range 0–1) ---
-    energy_pts = 1.0 - abs(song["energy"] - user_prefs["target_energy"])
+    # EXPERIMENT: doubled (was 1.0) — rewards energy proximity more heavily
+    energy_pts = 2.0 * (1.0 - abs(song["energy"] - user_prefs["target_energy"]))
     score += energy_pts
     reasons.append(f"energy similarity (+{energy_pts:.2f})")
 
